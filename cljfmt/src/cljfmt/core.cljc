@@ -486,6 +486,56 @@
 (defn sort-ns-references [form]
   (transform form edit-all ns-reference? sort-arguments))
 
+(defn- node-width [zloc]
+  (-> zloc z/node n/string count))
+
+(defn- node-column [zloc]
+  (loop [zloc (z/left* zloc), n 0]
+    (if (or (nil? zloc) (line-break? zloc))
+      n
+      (recur (z/left* zloc)
+             (if (clojure-whitespace? zloc) n (inc n))))))
+
+(defn- max-column-widths [zloc]
+  (loop [zloc (z/down zloc), max-widths {}]
+    (if (nil? zloc)
+      max-widths
+      (let [width  (node-width zloc)
+            column (node-column zloc)]
+        (recur (z/right zloc)
+               (update max-widths column (fnil max 0) width))))))
+
+(defn- remove-space-right [zloc]
+  (let [right (z/right* zloc)]
+    (if (space? right) (z/remove* right) zloc)))
+
+(defn- set-spacing-right [zloc n]
+  (-> zloc (remove-space-right) (z/insert-space-right n)))
+
+(defn- map-children [zloc f]
+  (if-let [zloc (z/down zloc)]
+    (loop [zloc zloc]
+      (let [zloc (f zloc)]
+        (if-let [zloc (z/right zloc)]
+          (recur zloc)
+          (z/up zloc))))
+    zloc))
+
+(defn- pad-node [zloc width]
+  (set-spacing-right zloc (- width (node-width zloc))))
+
+(defn- end-of-line? [zloc]
+  (line-break? (skip-whitespace-and-commas (z/right* zloc))))
+
+(defn- align-form-columns [zloc]
+  (let [max-widths (max-column-widths zloc)]
+    (map-children zloc #(cond-> %
+                          (and (z/right %) (not (end-of-line? %)))
+                          (pad-node (inc (max-widths (node-column %))))))))
+
+(defn align-map-columns [form]
+  (transform form edit-all z/map? align-form-columns))
+
 (def default-options
   {:indentation?                          true
    :insert-missing-whitespace?            true
@@ -495,6 +545,7 @@
    :remove-trailing-whitespace?           true
    :split-keypairs-over-multiple-lines?   false
    :sort-ns-references?                   false
+   :align-map-columns?                    false
    :indents   default-indents
    :alias-map {}})
 
@@ -516,6 +567,8 @@
            insert-missing-whitespace)
          (cond-> (:remove-multiple-non-indenting-spaces? opts)
            remove-multiple-non-indenting-spaces)
+         (cond-> (:align-map-columns? opts)
+           align-map-columns)
          (cond-> (:indentation? opts)
            (reindent (:indents opts) (:alias-map opts)))
          (cond-> (:remove-trailing-whitespace? opts)
