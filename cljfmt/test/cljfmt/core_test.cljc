@@ -1336,3 +1336,31 @@
         "   ^{:x 1} b"
         "   [c]))"]
        {:sort-ns-references? true})))
+
+(deftest test-align-map-columns
+  (is (reformats-to?
+       ["{:x 1"
+        " :longer 2}"]
+       ["{:x      1"
+        " :longer 2}"]
+       {:align-map-columns? true}))
+  (is (reformats-to?
+       ["{:x 1 :longer 2}"]
+       ["{:x 1 :longer 2}"]
+       {:align-map-columns? true}))
+  (is (reformats-to?
+       ["{:a 1 :b 2 :cc 3"
+        ":dd 4 :eee 5 :f 6"
+        ":ggg 7 :hh 8 :iii 9}"]
+       ["{:a   1 :b   2 :cc  3"
+        " :dd  4 :eee 5 :f   6"
+        " :ggg 7 :hh  8 :iii 9}"]
+       {:align-map-columns? true}))
+  (is (reformats-to?
+       ["{:a {:b 1"
+        "     :c 2}"
+        " :ddd {:e 3}}"]
+       ["{:a   {:b 1"
+        "       :c 2}"
+        " :ddd {:e 3}}"]
+       {:align-map-columns? true})))
