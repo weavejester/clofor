@@ -154,6 +154,21 @@ selectively enabled or disabled:
   other references in the `ns` forms at the top of your namespaces.
   Defaults to false.
 
+* `:align-maps?` -
+  True if cljfmt should left align the values of maps.
+
+  This will convert:
+  ```clojure
+  {:foo 1
+   :barbaz 2}
+  ```
+  To:
+  ```clojure
+  {:foo    1
+   :barbaz 2}
+  ```
+  Defaults to false.
+
 You can also configure the behavior of cljfmt:
 
 * `:paths` - determines which directories to include in the
