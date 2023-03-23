@@ -1363,4 +1363,14 @@
        ["{:a   {:b 1"
         "       :c 2}"
         " :ddd {:e 3}}"]
-       {:align-map-columns? true})))
+       {:align-map-columns? true}))
+  (is (reformats-to?
+       ["{{:a 1"
+        "  :b 2} 3"
+        " {:ccc 4} 5}"]
+       ["{{:a 1"
+        "  :b 2}   3"
+        " {:ccc 4} 5}"]
+       {:align-map-columns? true
+        :insert-missing-whitespace? false
+        :remove-multiple-non-indenting-spaces? false})))

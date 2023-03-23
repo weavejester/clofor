@@ -486,8 +486,11 @@
 (defn sort-ns-references [form]
   (transform form edit-all ns-reference? sort-arguments))
 
-(defn- node-width [zloc]
-  (-> zloc z/node n/string count))
+(defn- node-max-line-width [zloc]
+  (transduce (map count) max 0
+             (-> zloc z/node n/string
+                 (as-> $ (str (prior-line-string zloc) $))
+                 (str/split #"\r?\n"))))
 
 (defn- node-column [zloc]
   (loop [zloc (z/left* zloc), n 0]
@@ -500,17 +503,26 @@
   (loop [zloc (z/down zloc), max-widths {}]
     (if (nil? zloc)
       max-widths
-      (let [width  (node-width zloc)
+      (let [width  (node-max-line-width zloc)
             column (node-column zloc)]
         (recur (z/right zloc)
                (update max-widths column (fnil max 0) width))))))
 
-(defn- remove-space-right [zloc]
-  (let [right (z/right* zloc)]
-    (if (space? right) (z/remove* right) zloc)))
+(defn- insert-space-left [zloc n]
+  (cond-> zloc (pos? n) (z/insert-space-left n)))
 
-(defn- set-spacing-right [zloc n]
-  (-> zloc (remove-space-right) (z/insert-space-right n)))
+(defn- skip-to-next-line-in-form [zloc]
+  (z/right (z/skip z/right* (complement line-break?) zloc)))
+
+(defn- pad-node [zloc width]
+  (let [padding (- width (margin zloc))
+        zloc    (insert-space-left zloc padding)]
+    (if-some [zloc (z/down zloc)]
+      (loop [zloc zloc]
+        (if-some [zloc (skip-to-next-line-in-form zloc)]
+          (recur (insert-space-left zloc padding))
+          (z/up zloc)))
+      zloc)))
 
 (defn- map-children [zloc f]
   (if-let [zloc (z/down zloc)]
@@ -521,17 +533,12 @@
           (z/up zloc))))
     zloc))
 
-(defn- pad-node [zloc width]
-  (set-spacing-right zloc (- width (node-width zloc))))
-
-(defn- end-of-line? [zloc]
-  (line-break? (skip-whitespace-and-commas (z/right* zloc))))
-
 (defn- align-form-columns [zloc]
   (let [max-widths (max-column-widths zloc)]
-    (map-children zloc #(cond-> %
-                          (and (z/right %) (not (end-of-line? %)))
-                          (pad-node (inc (max-widths (node-column %))))))))
+    (map-children zloc #(let [col (node-column %)]
+                          (cond-> %
+                            (pos? col)
+                            (pad-node (inc (max-widths (dec col)))))))))
 
 (defn align-map-columns [form]
   (transform form edit-all z/map? align-form-columns))
@@ -567,10 +574,10 @@
            insert-missing-whitespace)
          (cond-> (:remove-multiple-non-indenting-spaces? opts)
            remove-multiple-non-indenting-spaces)
-         (cond-> (:align-map-columns? opts)
-           align-map-columns)
          (cond-> (:indentation? opts)
            (reindent (:indents opts) (:alias-map opts)))
+         (cond-> (:align-map-columns? opts)
+           align-map-columns)
          (cond-> (:remove-trailing-whitespace? opts)
            remove-trailing-whitespace)))))
 
