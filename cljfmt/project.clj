@@ -9,9 +9,9 @@
                  [org.clojure/tools.reader "1.3.6"]
                  [com.googlecode.java-diff-utils/diffutils "1.3.0"]
                  [rewrite-clj "1.1.45"]]
-  :plugins [[lein-cljsbuild "1.1.7"]
+  :plugins [#_[lein-cljsbuild "1.1.7"]
             [io.taylorwood/lein-native-image "0.3.1"]]
-  :hooks [leiningen.cljsbuild]
+  :hooks [#_leiningen.cljsbuild]
   :cljsbuild {:builds
               {"dev" {:source-paths ["src" "test"]
                       :compiler {:main cljfmt.test-runner
